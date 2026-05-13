@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 public enum DarkroomMode {
@@ -18,44 +19,32 @@ public enum DarkroomMode {
 
     // MARK: - Private
 
-    static let domain = "com.apple.universalaccess" as CFString
-
     static var stateFilePath: String {
         (NSTemporaryDirectory() as NSString).appendingPathComponent(".am_active")
     }
 
+    // Inverted red channel only: white→black, black→red.
+    // Direct gamma table write — bypasses the accessibility filter pipeline entirely.
     static func enable() {
-        write("classicInvert", kCFBooleanTrue!)
-        write("colorFilterEnabled", kCFBooleanTrue!)
-        write("colorFilterType", NSNumber(value: 5))
-        write("colorTint", "1 0 0 0.5" as CFString)
-        sync()
-        nudgeAccessibility()
+        let n = 256
+        var red   = (0..<n).map { CGGammaValue(1.0 - Double($0) / Double(n - 1)) }
+        var green = [CGGammaValue](repeating: 0, count: n)
+        var blue  = [CGGammaValue](repeating: 0, count: n)
+        for display in activeDisplays() {
+            CGSetDisplayTransferByTable(display, UInt32(n), &red, &green, &blue)
+        }
     }
 
     static func disable() {
-        write("classicInvert", kCFBooleanFalse!)
-        write("colorFilterEnabled", kCFBooleanFalse!)
-        sync()
-        nudgeAccessibility()
+        CGDisplayRestoreColorSyncSettings()
     }
 
-    static func write(_ key: String, _ value: CFPropertyList) {
-        CFPreferencesSetValue(key as CFString, value, domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
-    }
-
-    static func sync() {
-        CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
-    }
-
-    // No documented notification exists; post the general accessibility API signal as a best-effort nudge.
-    static func nudgeAccessibility() {
-        DistributedNotificationCenter.default().postNotificationName(
-            .init("com.apple.accessibility.api"),
-            object: nil,
-            userInfo: nil,
-            deliverImmediately: true
-        )
+    static func activeDisplays() -> [CGDirectDisplayID] {
+        var count: UInt32 = 0
+        CGGetActiveDisplayList(0, nil, &count)
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        CGGetActiveDisplayList(count, &ids, &count)
+        return ids
     }
 
     static func setStateFile(active: Bool) {

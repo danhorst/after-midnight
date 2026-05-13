@@ -1,20 +1,24 @@
-.PHONY: build build-app install-app clean
+.PHONY: generate build build-app install-app clean
 
-RELEASE_DIR := .build/$(shell uname -m)-apple-macosx/release
-APP_NAME    := After Midnight
-APP_BUNDLE  := $(APP_NAME).app
-INSTALL_DIR := $(HOME)/Applications
+DERIVED_DATA  := build/xcode
+XCODE_RELEASE := $(DERIVED_DATA)/Build/Products/Release
+APP_BUNDLE    := AfterMidnight.app
+INSTALL_DIR   := $(HOME)/Applications
+
+generate:
+	xcodegen generate
 
 build:
 	swift build -c release
 
-build-app:
-	swift build -c release --product AfterMidnightApp
+build-app: generate
+	xcodebuild -project "After Midnight.xcodeproj" \
+		-scheme "After Midnight" \
+		-configuration Release \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		build
 	rm -rf "$(APP_BUNDLE)"
-	mkdir -p "$(APP_BUNDLE)/Contents/MacOS"
-	cp "$(RELEASE_DIR)/AfterMidnightApp" "$(APP_BUNDLE)/Contents/MacOS/AfterMidnight"
-	cp Resources/Info.plist "$(APP_BUNDLE)/Contents/Info.plist"
-	codesign --force --deep -s - "$(APP_BUNDLE)"
+	cp -R "$(XCODE_RELEASE)/$(APP_BUNDLE)" .
 	@echo "Built $(APP_BUNDLE)"
 
 install-app: build-app
@@ -24,4 +28,4 @@ install-app: build-app
 	@echo "Installed to $(INSTALL_DIR)/$(APP_BUNDLE)"
 
 clean:
-	rm -rf "$(APP_BUNDLE)" .build
+	rm -rf "$(APP_BUNDLE)" .build build

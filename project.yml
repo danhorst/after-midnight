@@ -1,0 +1,39 @@
+name: After Midnight
+options:
+  bundleIdPrefix: com.danhorst
+  deploymentTarget:
+    macOS: "13.0"
+
+packages:
+  AfterMidnightCore:
+    path: .
+
+targets:
+  AfterMidnightApp:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - Sources/AfterMidnightApp
+    dependencies:
+      - package: AfterMidnightCore
+        product: AfterMidnightCore
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        PRODUCT_BUNDLE_IDENTIFIER: com.danhorst.after-midnight
+        PRODUCT_NAME: AfterMidnight
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        SWIFT_STRICT_CONCURRENCY: minimal
+
+schemes:
+  After Midnight:
+    build:
+      targets:
+        AfterMidnightApp: all
+    run:
+      config: Debug
+    archive:
+      config: Release

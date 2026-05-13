@@ -4,6 +4,9 @@ import PackageDescription
 let package = Package(
     name: "after-midnight",
     platforms: [.macOS(.v13)],
+    products: [
+        .library(name: "AfterMidnightCore", targets: ["AfterMidnightCore"]),
+    ],
     targets: [
         .target(
             name: "AfterMidnightCore",

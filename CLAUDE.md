@@ -39,26 +39,27 @@ Phase 1 work should be structured so the app layer can reuse it (shared framewor
 - Phase 2: shared framework target vs. bundled `am` binary?
 - Tint intensity: hardcode red at 50% for MVP, or expose as a preference?
 
+## Structure
+
+Swift Package Manager project.
+`AfterMidnightCore` is the library target; `am` is the CLI executable that depends on it.
+Tests live in `Tests/AfterMidnightCoreTests/`.
+
+```
+Package.swift
+Sources/
+  AfterMidnightCore/DarkroomMode.swift   — toggle logic
+  am/main.swift                          — CLI entry point
+Tests/
+  AfterMidnightCoreTests/               — unit tests for core logic
+```
+
 ## Build and test
 
-No Xcode project exists yet.
-Once created, standard commands will be:
-
 ```
-# Build CLI
-swift build
-
-# Run CLI
-swift run am
-
-# Build release
-swift build -c release
-
-# Run tests
-swift test
-
-# Run a single test
-swift test --filter TestSuiteName/testMethodName
+swift build                              # build everything
+swift run am                             # toggle darkroom mode
+swift build -c release                   # release build
+swift test                               # run all tests
+swift test --filter DarkroomModeTests/testToggleOnFromInactive
 ```
-
-If the project uses an `.xcodeproj` or `.xcworkspace`, use `xcodebuild` instead.

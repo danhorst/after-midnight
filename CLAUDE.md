@@ -27,17 +27,25 @@ Phase 1 work should be structured so the app layer can reuse it (shared framewor
 ## Technical constraints
 
 - macOS 13+ (Ventura) only.
-- Private APIs are acceptable (`UAControlsManager` / `UADisplay` or direct `com.apple.universalaccess` preference writes).
-- Requires `com.apple.accessibility.api` entitlement.
 - No App Store distribution.
+
+## Implementation approach
+
+The darkroom effect is applied via `CGSetDisplayTransferByTable` (CoreGraphics, public API — no entitlements required).
+This writes the hardware gamma LUT directly on all active displays: inverted red channel, zero green and blue.
+White goes black, black goes red — the darkroom safelight effect.
+The change persists after the process exits and is cleared by `CGDisplayRestoreColorSyncSettings()`.
+
+The accessibility filter APIs (`com.apple.universalaccess` preferences, `UAControlsManager`, `MediaAccessibility`) were explored and rejected:
+- `com.apple.universalaccess` writes are silently dropped by `cfprefsd` on Ventura+ for unsandboxed processes.
+- Classic Invert and Color Filter are mutually exclusive even via API — `accessibilityd` enforces it.
+- `MADisplayFilterPref` Color Tint (type 5) does not activate through the preference API; it silently falls back to grayscale.
+- The standard accessibility filters don't produce a usable darkroom effect regardless.
 
 ## Open questions (from spec)
 
-- Does `com.apple.accessibility.api` allow direct preference writes, or is a different approach needed?
-- Do Classic Invert and Color Filters stack when set via API (the UI enforces mutual exclusion)?
-- Is `UAControlsManager` accessible from a CLI tool without a full app bundle?
 - Phase 2: shared framework target vs. bundled `am` binary?
-- Tint intensity: hardcode red at 50% for MVP, or expose as a preference?
+- Tint intensity: currently hardcoded to full red. Expose as a preference?
 
 ## Structure
 

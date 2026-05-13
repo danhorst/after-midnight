@@ -28,4 +28,4 @@ install-app: build-app
 	@echo "Installed to $(INSTALL_DIR)/$(APP_BUNDLE)"
 
 clean:
-	rm -rf "$(APP_BUNDLE)" .build build
+	rm -rf "$(APP_BUNDLE)" "After Midnight.app" .build build

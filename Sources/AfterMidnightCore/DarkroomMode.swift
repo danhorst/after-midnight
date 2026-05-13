@@ -10,16 +10,15 @@ public enum DarkroomMode {
     }
 
     @discardableResult
-    public static func toggle() -> Bool {
+    public static func toggle(invert: Bool = false) -> Bool {
         let next = !isActive
-        if next { enable() } else { disable() }
+        if next { enable(invert: invert) } else { disable() }
         return next
     }
 
     // Called by the hold subprocess: apply gamma and block until killed.
-    public static func hold() {
-        applyGamma()
-        // Restore on clean exit; OS also restores on unclean exit.
+    public static func hold(invert: Bool) {
+        applyGamma(invert: invert)
         signal(SIGTERM) { _ in CGDisplayRestoreColorSyncSettings(); exit(0) }
         signal(SIGINT)  { _ in CGDisplayRestoreColorSyncSettings(); exit(0) }
         dispatchMain()
@@ -34,10 +33,10 @@ public enum DarkroomMode {
         (NSTemporaryDirectory() as NSString).appendingPathComponent(name)
     }
 
-    static func enable() {
+    static func enable(invert: Bool) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
-        task.arguments = ["--hold"]
+        task.arguments = invert ? ["--hold", "--invert"] : ["--hold"]
         task.standardInput  = FileHandle.nullDevice
         task.standardOutput = FileHandle.nullDevice
         task.standardError  = FileHandle.nullDevice
@@ -55,9 +54,12 @@ public enum DarkroomMode {
         try? FileManager.default.removeItem(atPath: pidFilePath)
     }
 
-    static func applyGamma() {
+    static func applyGamma(invert: Bool) {
         let n = 256
-        var red   = (0..<n).map { CGGammaValue(1.0 - Double($0) / Double(n - 1)) }
+        var red = (0..<n).map { i -> CGGammaValue in
+            let v = Double(i) / Double(n - 1)
+            return CGGammaValue(invert ? 1.0 - v : v)
+        }
         var green = [CGGammaValue](repeating: 0, count: n)
         var blue  = [CGGammaValue](repeating: 0, count: n)
         for display in activeDisplays() {

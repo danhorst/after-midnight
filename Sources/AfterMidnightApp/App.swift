@@ -2,9 +2,25 @@ import SwiftUI
 import ServiceManagement
 import AfterMidnightCore
 
+// MenuBarExtra doesn't support onOpenURL; delegate handles the URL scheme instead.
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard url.scheme == "aftermidnight" else { continue }
+            switch url.host {
+            case "toggle": DarkroomState.shared.toggle()
+            case "on":     DarkroomState.shared.enable()
+            case "off":    DarkroomState.shared.disable()
+            default:       break
+            }
+        }
+    }
+}
+
 @main
 struct AfterMidnightApp: App {
-    @State private var isActive: Bool = DarkroomMode.isActive
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var state = DarkroomState.shared
     @State private var launchAtLogin: Bool = (SMAppService.mainApp.status == .enabled)
     @AppStorage("invert") private var invert: Bool = false
 
@@ -12,25 +28,19 @@ struct AfterMidnightApp: App {
         // Re-apply gamma in our process if the saved state says we're active.
         // Handles the case where the CLI left a stale hold subprocess.
         if DarkroomMode.isActive {
-            let invert = UserDefaults.standard.bool(forKey: "invert")
-            DarkroomMode.enableInProcess(invert: invert)
+            DarkroomMode.enableInProcess(invert: UserDefaults.standard.bool(forKey: "invert"))
         }
     }
 
     var body: some Scene {
         MenuBarExtra {
-            Button(isActive ? "Turn Off" : "Turn On") {
-                if isActive {
-                    DarkroomMode.disableInProcess()
-                } else {
-                    DarkroomMode.enableInProcess(invert: invert)
-                }
-                isActive.toggle()
+            Button(state.isActive ? "Turn Off" : "Turn On") {
+                state.toggle()
             }
             Divider()
             Toggle("Invert Colors", isOn: $invert)
-                .onChange(of: invert) { newValue in
-                    if isActive { DarkroomMode.enableInProcess(invert: newValue) }
+                .onChange(of: invert) { _ in
+                    if state.isActive { state.enable() }
                 }
             Toggle("Launch at Login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) { newValue in
@@ -48,7 +58,7 @@ struct AfterMidnightApp: App {
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {
-            Image(systemName: isActive ? "moon.fill" : "moon")
+            Image(systemName: state.isActive ? "moon.fill" : "moon")
         }
     }
 }

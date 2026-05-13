@@ -16,6 +16,20 @@ public enum DarkroomMode {
         return next
     }
 
+    // For the menu bar app: apply gamma in the calling process and write state.
+    // The app's own lifetime holds the gamma table; no subprocess needed.
+    public static func enableInProcess(invert: Bool = false) {
+        applyGamma(invert: invert)
+        try? "".write(toFile: stateFilePath, atomically: true, encoding: .utf8)
+    }
+
+    // For the menu bar app: restore display and clean up state.
+    public static func disableInProcess() {
+        CGDisplayRestoreColorSyncSettings()
+        try? FileManager.default.removeItem(atPath: stateFilePath)
+        try? FileManager.default.removeItem(atPath: pidFilePath)
+    }
+
     // Called by the hold subprocess: apply gamma and block until killed.
     public static func hold(invert: Bool) {
         applyGamma(invert: invert)

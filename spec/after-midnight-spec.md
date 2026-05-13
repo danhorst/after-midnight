@@ -50,7 +50,7 @@ The gamma table approach produces a better result than the originally-specified 
 
 ---
 
-## Phase 2: macOS Menu Bar App (After Midnight.app)
+## Phase 2: macOS Menu Bar App (After Midnight.app) — COMPLETE
 
 ### Goal
 
@@ -70,22 +70,39 @@ Wrap the Phase 1 toggle logic in a native macOS menu bar application.
 - Minimal UI; this is a toggle utility, not a settings app
 - The After Dark screensaver lineage is an intentional easter egg, not a primary design driver
 
-### Architecture Decision Required
+### Architecture
 
-The Phase 1 hold subprocess re-executes the `am` binary by path (`CommandLine.arguments[0]`).
-For a menu bar app, the hold process needs a stable, bundled binary path.
-Two options:
+The app holds the gamma table in its own process — no hold subprocess needed.
+`DarkroomMode.enableInProcess()` / `disableInProcess()` apply and restore the gamma table directly.
+The CLI's subprocess approach is preserved for standalone use.
 
-| Option | Description | Trade-off |
-| ------ | ----------- | --------- |
-| Shared framework | `AfterMidnightCore` as a proper framework; both `am` and the app link it; the app manages its own hold loop via a background thread or GCD | No CLI binary needed inside the bundle; cleaner for the app; breaks the CLI `--hold` self-exec pattern |
-| Bundled `am` binary | App bundles the `am` executable in `Contents/MacOS/`; app invokes it for toggle | CLI and app share the same binary; simpler; the app still needs its own `NSStatusItem` and lifecycle management |
+### Notes
 
-The shared framework approach is likely cleaner for Phase 2, since the app's natural lifecycle (always running) eliminates the need for the hold-subprocess pattern entirely.
-The app process itself holds the gamma table; toggling off simply calls `CGDisplayRestoreColorSyncSettings()`.
+- `am` CLI remains a first-class deliverable; both coexist via the shared `AfterMidnightCore` library.
+- Login at login via `SMAppService`: works for apps installed in `~/Applications` or `/Applications` with ad-hoc signing.
+- Intensity hardcoded to full red inversion; could be exposed as a preference in a future pass.
 
-### Open Questions
+---
 
-- Intensity: currently hardcoded to full red inversion. Expose as a slider/preference, or keep hardcoded?
-- Should the CLI `am` remain a first-class deliverable alongside the app, or become internal-only once the app exists?
-- Login item implementation: `SMAppService` (macOS 13+) is the modern API; verify it works without a provisioning profile for a locally-signed app.
+## Phase 3: Automation Support
+
+### Goal
+
+Allow darkroom mode to be triggered from outside the app — keyboard shortcuts, Shortcuts automations, scripts — without adding a settings UI to the menu bar app.
+
+### Approach
+
+**URL scheme** (`aftermidnight://`)
+Register a custom URL scheme in `Info.plist`.
+Handle `aftermidnight://toggle`, `aftermidnight://on`, `aftermidnight://off` via `onOpenURL`.
+Immediately actionable from scripts, Alfred, Raycast, etc.
+
+**Shortcuts actions** (App Intents, macOS 13+)
+Expose `ToggleDarkroomIntent`, `EnableDarkroomIntent`, `DisableDarkroomIntent` via `AppIntentsPackage`.
+Appears in the Shortcuts app and Spotlight; composable with other automations.
+Users can assign a global keyboard shortcut to any Shortcut via System Settings — no in-app hotkey UI needed.
+
+### What this avoids
+
+A bespoke global hotkey would require a settings UI to configure and capture the key combination.
+URL scheme + Shortcuts gives system-wide triggering via user-owned infrastructure instead.

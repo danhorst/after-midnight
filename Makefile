@@ -2,7 +2,7 @@
 
 DERIVED_DATA  := build/xcode
 XCODE_RELEASE := $(DERIVED_DATA)/Build/Products/Release
-APP_BUNDLE    := AfterMidnight.app
+APP_BUNDLE    := After Midnight.app
 INSTALL_DIR   := $(HOME)/Applications
 
 generate:
@@ -28,4 +28,4 @@ install-app: build-app
 	@echo "Installed to $(INSTALL_DIR)/$(APP_BUNDLE)"
 
 clean:
-	rm -rf "$(APP_BUNDLE)" "After Midnight.app" .build build
+	rm -rf "$(APP_BUNDLE)" "AfterMidnight.app" .build build

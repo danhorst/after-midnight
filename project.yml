@@ -23,7 +23,7 @@ targets:
         INFOPLIST_FILE: Resources/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         PRODUCT_BUNDLE_IDENTIFIER: com.danhorst.after-midnight
-        PRODUCT_NAME: AfterMidnight
+        PRODUCT_NAME: After Midnight
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         SWIFT_STRICT_CONCURRENCY: minimal

@@ -17,11 +17,6 @@ let package = Package(
             dependencies: ["AfterMidnightCore"],
             path: "Sources/am"
         ),
-        .executableTarget(
-            name: "AfterMidnightApp",
-            dependencies: ["AfterMidnightCore"],
-            path: "Sources/AfterMidnightApp"
-        ),
         .testTarget(
             name: "AfterMidnightCoreTests",
             dependencies: ["AfterMidnightCore"],

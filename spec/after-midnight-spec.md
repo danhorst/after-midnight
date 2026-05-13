@@ -1,14 +1,16 @@
 # After Midnight
 
-A macOS utility that toggles "darkroom mode": Classic color invert + red color tint filter, for working comfortably in a dark room. Inspired by f.lux's darkroom mode and a nod to the classic After Dark screensaver.
+A macOS utility that toggles "darkroom mode": a red-on-black display effect for working comfortably in a dark room.
+Inspired by f.lux's darkroom mode and a nod to the classic After Dark screensaver.
 
 ---
 
-## Phase 1: CLI Tool (`am`)
+## Phase 1: CLI Tool (`am`) — COMPLETE
 
 ### Goal
 
-A Swift command-line tool that toggles darkroom mode on/off. The executable is named `am` — both a CLI convention and a wink at AM time.
+A Swift command-line tool that toggles darkroom mode on/off.
+The executable is named `am` — both a CLI convention and a wink at AM time.
 
 ### Behavior
 
@@ -16,35 +18,35 @@ A Swift command-line tool that toggles darkroom mode on/off. The executable is n
 - State persists in `$TMPDIR/.am_active` (user-scoped, clears on reboot)
 - Prints a brief status line on toggle: `After Midnight: ON` / `After Midnight: OFF`
 
-### Technical Approach to Investigate
+### Implementation
 
-- `UAControlsManager` / `UADisplay` private framework (what f.lux uses)
-- Or `AXUIElementCreateSystemWide()` + setting kAX attributes
-- Check whether the `com.apple.accessibility.api` entitlement unlocks direct preference writes
-- Determine whether a full `.app` bundle is required for private API access, or if a CLI tool suffices
+The darkroom effect is applied via `CGSetDisplayTransferByTable` (CoreGraphics, public API).
+This writes the hardware gamma LUT directly on all active displays: inverted red channel, zero green and blue.
+White goes black, black goes red — the darkroom safelight effect.
+No entitlements or user permissions are required.
 
-### Target Settings
+`CGSetDisplayTransferByTable` is process-scoped: the OS restores the gamma table when the setting process exits.
+To hold the effect, `enable()` launches a detached `--hold` subprocess of the same binary.
+The subprocess applies the gamma table and blocks; `disable()` kills it by PID and the OS restores the display.
+PID is tracked in `$TMPDIR/.am_pid`.
 
-| Key                  | Value                                                          |
-| -------------------- | -------------------------------------------------------------- |
-| `classicInvert`      | `true`                                                         |
-| `colorFilterEnabled` | `true`                                                         |
-| `colorFilterType`    | `5` (Color Tint)                                               |
-| `colorTint`          | `"1 0 0 0.5"` (red, 50% opacity — intensity TBD via testing) |
+### What Was Ruled Out
 
-All keys under `com.apple.universalaccess`.
+The accessibility filter APIs were explored and rejected:
+
+- `com.apple.universalaccess` preference writes are silently dropped by `cfprefsd` on Ventura+ for unsandboxed processes.
+- Classic Invert and Color Filter are mutually exclusive even via API — `accessibilityd` enforces the same constraint the UI does.
+- `MADisplayFilterPrefSetType` for Color Tint (type 5) silently falls back to grayscale regardless of call order or argument encoding.
+- The standard accessibility color filters (grayscale, color blindness corrections) don't produce a usable darkroom effect.
+- `UAControlsManager` and related `UniversalAccess.framework` symbols are not available from a CLI tool on macOS 15.
+
+The gamma table approach produces a better result than the originally-specified "Classic Invert + red color tint" combination anyway: the inverted red channel gives white→black, black→red directly, with no intermediate compositing.
 
 ### Constraints
 
 - macOS 13+ (Ventura)
-- No App Store distribution required; private APIs are acceptable
-- Minimize required user permissions — ideally Accessibility access granted once
-
-### Open Questions
-
-- Does the `com.apple.accessibility.api` entitlement allow direct preference writes?
-- Do Classic Invert and Color Filters actually stack when set via API (bypassing UI mutual-exclusion logic)?
-- Is `UAControlsManager` accessible without a full app bundle?
+- No App Store distribution; no private APIs in the final implementation
+- No user permissions required
 
 ---
 
@@ -52,7 +54,7 @@ All keys under `com.apple.universalaccess`.
 
 ### Goal
 
-Wrap the Phase 1 toggle logic in a native macOS menu bar application. The CLI harness developed in Phase 1 should inform and be reusable by the app layer.
+Wrap the Phase 1 toggle logic in a native macOS menu bar application.
 
 ### Behavior
 
@@ -68,7 +70,22 @@ Wrap the Phase 1 toggle logic in a native macOS menu bar application. The CLI ha
 - Minimal UI; this is a toggle utility, not a settings app
 - The After Dark screensaver lineage is an intentional easter egg, not a primary design driver
 
+### Architecture Decision Required
+
+The Phase 1 hold subprocess re-executes the `am` binary by path (`CommandLine.arguments[0]`).
+For a menu bar app, the hold process needs a stable, bundled binary path.
+Two options:
+
+| Option | Description | Trade-off |
+| ------ | ----------- | --------- |
+| Shared framework | `AfterMidnightCore` as a proper framework; both `am` and the app link it; the app manages its own hold loop via a background thread or GCD | No CLI binary needed inside the bundle; cleaner for the app; breaks the CLI `--hold` self-exec pattern |
+| Bundled `am` binary | App bundles the `am` executable in `Contents/MacOS/`; app invokes it for toggle | CLI and app share the same binary; simpler; the app still needs its own `NSStatusItem` and lifecycle management |
+
+The shared framework approach is likely cleaner for Phase 2, since the app's natural lifecycle (always running) eliminates the need for the hold-subprocess pattern entirely.
+The app process itself holds the gamma table; toggling off simply calls `CGDisplayRestoreColorSyncSettings()`.
+
 ### Open Questions
 
-- Should the app bundle Phase 1's `am` binary for CLI access, or share a common framework target?
-- Tint color and intensity: expose as a preference, or hardcode red for MVP?
+- Intensity: currently hardcoded to full red inversion. Expose as a slider/preference, or keep hardcoded?
+- Should the CLI `am` remain a first-class deliverable alongside the app, or become internal-only once the app exists?
+- Login item implementation: `SMAppService` (macOS 13+) is the modern API; verify it works without a provisioning profile for a locally-signed app.

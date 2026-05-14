@@ -27,6 +27,11 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     exit 1
 fi
 
+if ! gh auth status --hostname github.com &>/dev/null; then
+    echo "error: not authenticated with GitHub — run 'gh auth login' first" >&2
+    exit 1
+fi
+
 # ── 1. Promote [Unreleased] → [VERSION] if it has entries ─────────────────────
 
 HAS_UNRELEASED=$(awk '/^## \[Unreleased\]/{f=1;next} f&&/^## \[/{exit} f&&/\S/{print;exit}' CHANGELOG.md)

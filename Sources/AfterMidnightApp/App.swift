@@ -41,6 +41,7 @@ struct AfterMidnightApp: App {
             Button(state.isActive ? "Turn Off" : "Turn On") {
                 state.toggle()
             }
+            .keyboardShortcut("t")
             Divider()
             Toggle("Invert Colors", isOn: $invert)
                 .onChange(of: invert) { _ in

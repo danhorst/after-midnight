@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Command-T keyboard shortcut for the Turn On / Turn Off menu item.
+
 ## [0.2.0] - 2026-05-14
 
 ### Added

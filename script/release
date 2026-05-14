@@ -34,7 +34,7 @@ fi
 
 # ── 1. Promote [Unreleased] → [VERSION] if it has entries ─────────────────────
 
-HAS_UNRELEASED=$(awk '/^## \[Unreleased\]/{f=1;next} f&&/^## \[/{exit} f&&/\S/{print;exit}' CHANGELOG.md)
+HAS_UNRELEASED=$(awk '/^## \[Unreleased\]/{f=1;next} f&&/^## \[/{exit} f&&/[^[:space:]]/{print;exit}' CHANGELOG.md)
 
 if [ -n "$HAS_UNRELEASED" ]; then
     TODAY=$(date +%Y-%m-%d)

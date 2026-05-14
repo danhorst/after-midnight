@@ -68,3 +68,15 @@ swift test --filter DarkroomModeTests/testToggleOnFromInactive
 ```
 
 The xcodeproj is gitignored; run `make generate` after pulling changes to `project.yml`.
+
+## Release
+
+1. Review `README.md` for accuracy against current behavior.
+2. Write entries for the new version under `[Unreleased]` in `CHANGELOG.md`.
+3. Commit all changes; working tree must be clean before the next step.
+4. Run:
+```
+script/release VERSION
+```
+
+The script promotes `[Unreleased]` to a dated version entry, tags and pushes, computes the tarball sha256, updates `../homebrew-tap/Formula/after-midnight.rb`, and creates the GitHub release.

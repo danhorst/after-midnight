@@ -15,6 +15,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        DarkroomMode.disableInProcess()
+    }
 }
 
 @main
@@ -25,10 +29,10 @@ struct AfterMidnightApp: App {
     @AppStorage("invert") private var invert: Bool = false
 
     init() {
-        // Re-apply gamma in our process if the saved state says we're active.
-        // Handles the case where the CLI left a stale hold subprocess.
         if DarkroomMode.isActive {
-            DarkroomMode.enableInProcess(invert: UserDefaults.standard.bool(forKey: "invert"))
+            let mode = DarkroomMode.activeInvert
+            DarkroomMode.killHoldProcess()
+            DarkroomMode.enableInProcess(invert: mode)
         }
     }
 

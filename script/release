@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage: script/release VERSION
+#
+# Prerequisites:
+#   - README reviewed for accuracy
+#   - CHANGELOG entries written under [Unreleased]
+#   - All changes committed; working tree clean
+
+VERSION="${1:?Usage: script/release VERSION}"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+TAP_DIR="$(cd "$REPO_DIR/../homebrew-tap" 2>/dev/null && pwd)" || {
+    echo "error: ../homebrew-tap not found" >&2; exit 1
+}
+FORMULA="$TAP_DIR/Formula/after-midnight.rb"
+REPO="danhorst/after-midnight"
+
+cd "$REPO_DIR"
+
+# ── Preflight ──────────────────────────────────────────────────────────────────
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "error: uncommitted changes present — commit or stash before releasing" >&2
+    exit 1
+fi
+
+# ── 1. Promote [Unreleased] → [VERSION] if it has entries ─────────────────────
+
+HAS_UNRELEASED=$(awk '/^## \[Unreleased\]/{f=1;next} f&&/^## \[/{exit} f&&/\S/{print;exit}' CHANGELOG.md)
+
+if [ -n "$HAS_UNRELEASED" ]; then
+    TODAY=$(date +%Y-%m-%d)
+    PREV=$(python3 -c "
+import re
+m = re.search(r'\[unreleased\]:.*compare/v([\d.]+)\.\.\.HEAD', open('CHANGELOG.md').read())
+print(m.group(1) if m else '')
+")
+    export VERSION TODAY PREV REPO
+    python3 << 'PYEOF'
+import re, os
+content = open('CHANGELOG.md').read()
+v, today, prev, repo = os.environ['VERSION'], os.environ['TODAY'], os.environ['PREV'], os.environ['REPO']
+content = content.replace('## [Unreleased]\n', f'## [Unreleased]\n\n## [{v}] - {today}\n', 1)
+content = re.sub(
+    r'\[unreleased\]:.*compare/v.*\.\.\.HEAD',
+    f'[unreleased]: https://github.com/{repo}/compare/v{v}...HEAD',
+    content
+)
+content = re.sub(
+    r'(\[unreleased\]: .*\n)',
+    rf'\1[{v}]: https://github.com/{repo}/compare/v{prev}...v{v}\n',
+    content
+)
+open('CHANGELOG.md', 'w').write(content)
+PYEOF
+    echo "Promoted [Unreleased] to [$VERSION] in CHANGELOG.md"
+    git add CHANGELOG.md
+    git commit -m "Release v$VERSION"
+elif ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+    echo "error: $VERSION not found in CHANGELOG.md — add entries under [Unreleased] first" >&2
+    exit 1
+fi
+
+# ── 2. Tag and push ────────────────────────────────────────────────────────────
+
+git tag "v$VERSION"
+git push origin main "v$VERSION"
+echo "Tagged and pushed v$VERSION"
+
+# ── 3. Compute sha256 ──────────────────────────────────────────────────────────
+
+URL="https://github.com/$REPO/archive/refs/tags/v$VERSION.tar.gz"
+echo "Computing sha256 for tarball..."
+SHA=$(curl -sL "$URL" | shasum -a 256 | awk '{print $1}')
+echo "sha256: $SHA"
+
+# ── 4. Update homebrew formula ─────────────────────────────────────────────────
+
+sd 'version ".*"' "version \"$VERSION\"" "$FORMULA"
+sd 'url ".*"' "url \"$URL\"" "$FORMULA"
+sd 'sha256 ".*"' "sha256 \"$SHA\"" "$FORMULA"
+echo "Updated $FORMULA"
+
+# ── 5. Commit and push homebrew-tap ───────────────────────────────────────────
+
+cd "$TAP_DIR"
+git add Formula/after-midnight.rb
+git commit -m "after-midnight v$VERSION"
+git push
+echo "Pushed homebrew-tap"
+
+# ── 6. Create GitHub release ──────────────────────────────────────────────────
+
+cd "$REPO_DIR"
+NOTES=$(awk "/^## \[$VERSION\]/{f=1;next} f&&/^## \[/{exit} f{print}" CHANGELOG.md)
+gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
+
+echo "Released v$VERSION"

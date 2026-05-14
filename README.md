@@ -41,11 +41,13 @@ Settings:
 ### CLI
 
 ```sh
-am           # toggle on/off
-am --invert  # toggle with color inversion
+am             # toggle on/off
+am --invert    # switch to inverted mode (keeps running if already on)
+am --no-invert # switch to red-tint mode (keeps running if already on)
 ```
 
-The CLI and the app share state in `$TMPDIR/.am_active`.
+The CLI and the app share active state (`$TMPDIR/.am_active`) and the invert preference (`com.danhorst.after-midnight` UserDefaults).
+If the app is running, `am` delegates to it via the URL scheme rather than managing its own hold process.
 
 ### Automation
 

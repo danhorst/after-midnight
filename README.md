@@ -2,14 +2,20 @@
 
 Working late? Turn After Midnight on and keep your night vision intact.
 
-This small, opinionated macOS menu bar app applies a red-on-black[^1] LUT to all displays.[^2]
-No accessibility permissions needed.
+This small, opinionated macOS menu bar app applies a red-on-black[^1] LUT to all displays.
+No accessibility permissions needed.[^2]
 
 ## System Requirements
 
 macOS 13 (Ventura) or later.
 
 ## Installation
+
+```sh
+brew tap danhorst/tap && brew install after-midnight
+```
+
+### Manual
 
 Building this app yourself requires Xcode and [xcodegen](https://github.com/yonaskolb/XcodeGen).
 
@@ -63,7 +69,9 @@ make build       # CLI only (swift build -c release)
 swift test       # run tests
 ```
 
-`After Midnight.xcodeproj` is in `.gitignore`; `project.yml` is the source of truth.
+> [!NOTE]
+> `After Midnight.xcodeproj` is ignored git.
+> Look at `project.yml` instead.
 
 [^1]: This effect is similar to the “Darkroom” mode in [f.lux](https://justgetflux.com). If you use Night Shift, you don’t need the rest of the functions of f.lux.
 [^2]: Writing a custom gamma LUT directly to the display hardware isn’t allowed from inside the macOS App Store sandbox.

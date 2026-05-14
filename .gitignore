@@ -1,7 +1,8 @@
-.build/
-build/
+*.app/
 *.xcodeproj/
 *.xcworkspace/
-*.app/
+.build/
+.claude
 .swiftpm/
 DerivedData/
+build/

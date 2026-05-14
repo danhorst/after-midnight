@@ -66,7 +66,7 @@ fi
 
 # ── 2. Tag and push ────────────────────────────────────────────────────────────
 
-git tag "v$VERSION"
+git tag -m "v$VERSION" "v$VERSION"
 git push origin main "v$VERSION"
 echo "Tagged and pushed v$VERSION"
 

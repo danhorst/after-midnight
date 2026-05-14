@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Install to system Applications folder instead of user Applications folder.
+
 ## [0.2.2] - 2026-05-14
 
 ### Added

@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>CFBundleURLTypes</key>

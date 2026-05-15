@@ -2,10 +2,10 @@
 
 # After Midnight
 
-Working late? Turn After Midnight on and keep your night vision intact.
+Working late?
+Turn on After Midnight and keep your night vision intact.
 
-This small, single-purpose macOS menu bar app applies a red-on-black[^1] LUT to all displays.
-No accessibility permissions needed.[^2]
+This small, single-purpose macOS menu bar app applies a red-on-black[^1] LUT to all displays.[^2]
 
 ## System Requirements
 
@@ -15,7 +15,7 @@ macOS 13 (Ventura) or later.
 
 ### App
 
-Building the app requires Xcode and [xcodegen](https://github.com/yonaskolb/XcodeGen).
+Building the app requires Xcode and [xcodegen][1].
 
 ```sh
 git clone git@github.com:danhorst/after-midnight.git
@@ -28,7 +28,7 @@ App Intents are registered with macOS when you run it for the first time.
 
 ### CLI
 
-If you only want the CLI, you can install it from [my Homebrew tap](https://github.com/danhorst/homebrew-tap):
+If you only want the CLI, you can install it from [my Homebrew tap][2]:
 
 ```sh
 brew tap danhorst/tap && brew install after-midnight
@@ -57,7 +57,7 @@ If the app is running, `am` delegates to it via the URL scheme rather than manag
 
 ### Automation
 
-The app URL scheme is usable from scripts, Alfred, Raycast, etc.:
+When the app is installed, it exposes a URL scheme that is callable from scripts, Alfred, Raycast, etc.:
 
 ```sh
 open aftermidnight://toggle
@@ -81,5 +81,10 @@ swift test       # run tests
 > `After Midnight.xcodeproj` is ignored git.
 > Look at `project.yml` instead.
 
-[^1]: This effect is similar to the “Darkroom” mode in [f.lux](https://justgetflux.com). If you use Night Shift, you don’t need the rest of the functions of f.lux.
+[^1]: This effect is similar to the “Darkroom” mode in [f.lux][3]. If you use [Night Shift][4], you don’t need the rest of the functions of f.lux.
 [^2]: Writing a custom gamma LUT directly to the display hardware isn’t allowed from inside the macOS App Store sandbox.
+
+[1]: https://github.com/yonaskolb/XcodeGen
+[2]: https://github.com/danhorst/homebrew-tap
+[3]: https://justgetflux.com
+[4]: https://en.wikipedia.org/wiki/Night_Shift_(software)

@@ -1,3 +1,5 @@
+<img src="assets/After Midnight.png" width="128" alt="After Midnight icon">
+
 # After Midnight
 
 Working late? Turn After Midnight on and keep your night vision intact.

@@ -5,8 +5,12 @@ final class DarkroomModeTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        // Remove any leftover state file before each test
         try? FileManager.default.removeItem(atPath: DarkroomMode.stateFilePath)
+    }
+
+    override func tearDown() {
+        DarkroomMode.disable()
+        super.tearDown()
     }
 
     func testInitialStateIsInactive() {

@@ -25,7 +25,7 @@ cd after-midnight
 make install-app
 ```
 
-This installs `After Midnight.app` to `~/Applications`.
+This installs `After Midnight.app` to `/Applications`.
 Launch it once from there to register the App Intents with the system.
 
 ## In Use

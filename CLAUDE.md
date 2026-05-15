@@ -62,7 +62,7 @@ Tests/
 make generate                            # regenerate After Midnight.xcodeproj from project.yml
 make build                               # swift build -c release (CLI + library)
 make build-app                           # xcodebuild release bundle with App Intents metadata
-make install-app                         # build and install to ~/Applications
+make install-app                         # build and install to /Applications
 swift test                               # run all tests
 swift test --filter DarkroomModeTests/testToggleOnFromInactive
 ```

@@ -16,6 +16,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            if DarkroomState.shared.isActive { DarkroomState.shared.enable() }
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         DarkroomMode.disableInProcess()
     }

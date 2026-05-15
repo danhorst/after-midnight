@@ -3,7 +3,7 @@
 DERIVED_DATA  := build/xcode
 XCODE_RELEASE := $(DERIVED_DATA)/Build/Products/Release
 APP_BUNDLE    := After Midnight.app
-INSTALL_DIR   := $(HOME)/Applications
+INSTALL_DIR   := /Applications
 
 generate:
 	xcodegen generate

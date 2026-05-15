@@ -17,15 +17,13 @@ build-app: generate
 		-configuration Release \
 		-derivedDataPath "$(DERIVED_DATA)" \
 		build
-	rm -rf "$(APP_BUNDLE)"
-	cp -R "$(XCODE_RELEASE)/$(APP_BUNDLE)" .
 	@echo "Built $(APP_BUNDLE)"
 
 install-app: build-app
 	mkdir -p "$(INSTALL_DIR)"
 	rm -rf "$(INSTALL_DIR)/$(APP_BUNDLE)"
-	cp -R "$(APP_BUNDLE)" "$(INSTALL_DIR)/"
+	cp -R "$(XCODE_RELEASE)/$(APP_BUNDLE)" "$(INSTALL_DIR)/"
 	@echo "Installed to $(INSTALL_DIR)/$(APP_BUNDLE)"
 
 clean:
-	rm -rf "$(APP_BUNDLE)" "AfterMidnight.app" .build build
+	rm -rf .build build

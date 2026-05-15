@@ -4,7 +4,7 @@
 
 Working late? Turn After Midnight on and keep your night vision intact.
 
-This small, opinionated macOS menu bar app applies a red-on-black[^1] LUT to all displays.
+This small, single-purpose macOS menu bar app applies a red-on-black[^1] LUT to all displays.
 No accessibility permissions needed.[^2]
 
 ## System Requirements
@@ -13,13 +13,9 @@ macOS 13 (Ventura) or later.
 
 ## Installation
 
-```sh
-brew tap danhorst/tap && brew install after-midnight
-```
+### App
 
-### Manual
-
-Building this app yourself requires Xcode and [xcodegen](https://github.com/yonaskolb/XcodeGen).
+Building the app requires Xcode and [xcodegen](https://github.com/yonaskolb/XcodeGen).
 
 ```sh
 git clone git@github.com:danhorst/after-midnight.git
@@ -27,8 +23,16 @@ cd after-midnight
 make install-app
 ```
 
-This installs `After Midnight.app` to `/Applications`.
-Launch it once from there to register the App Intents with the system.
+The build script installs `After Midnight.app` in `/Applications`.
+App Intents are registered with macOS when you run it for the first time.
+
+### CLI
+
+If you only want the CLI, you can install it from [my Homebrew tap](https://github.com/danhorst/homebrew-tap):
+
+```sh
+brew tap danhorst/tap && brew install after-midnight
+```
 
 ## In Use
 

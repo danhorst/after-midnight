@@ -9,6 +9,7 @@ set -euo pipefail
 #   - All changes committed; working tree clean
 
 VERSION="${1:?Usage: script/release VERSION}"
+VERSION="${VERSION#v}"  # strip leading 'v' so both 'v0.2.3' and '0.2.3' work
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

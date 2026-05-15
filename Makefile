@@ -22,7 +22,7 @@ build-app: generate
 install-app: build-app
 	mkdir -p "$(INSTALL_DIR)"
 	rm -rf "$(INSTALL_DIR)/$(APP_BUNDLE)"
-	cp -R "$(XCODE_RELEASE)/$(APP_BUNDLE)" "$(INSTALL_DIR)/"
+	mv "$(XCODE_RELEASE)/$(APP_BUNDLE)" "$(INSTALL_DIR)/"
 	@echo "Installed to $(INSTALL_DIR)/$(APP_BUNDLE)"
 
 clean:

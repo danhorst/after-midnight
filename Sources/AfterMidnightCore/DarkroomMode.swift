@@ -2,20 +2,24 @@ import CoreGraphics
 import Darwin
 import Foundation
 
+// Re-applies gamma after any display reconfiguration (monitor connect/disconnect/sleep).
+// File-scope so it has no captures and can bridge to @convention(c).
+private let displayReconfigCallback: CGDisplayReconfigurationCallBack = { _, flags, _ in
+    guard !flags.contains(.beginConfigurationFlag),
+          let invert = DarkroomMode.activeSession else { return }
+    DarkroomMode.applyGamma(invert: invert)
+}
+
 public enum DarkroomMode {
 
     // MARK: - Public API
 
     public static let appBundleID = "com.danhorst.after-midnight"
 
-    public static var isActive: Bool {
-        FileManager.default.fileExists(atPath: stateFilePath)
-    }
+    public static var isActive: Bool { activeSession != nil }
 
     // The invert mode recorded when the current session was started.
-    public static var activeInvert: Bool {
-        (try? String(contentsOfFile: stateFilePath))?.trimmingCharacters(in: .whitespacesAndNewlines) == "invert"
-    }
+    public static var activeInvert: Bool { activeSession == true }
 
     // Shared invert preference — same UserDefaults domain the app uses.
     public static var invertPreference: Bool {
@@ -34,11 +38,13 @@ public enum DarkroomMode {
     // The app's own lifetime holds the gamma table; no subprocess needed.
     public static func enableInProcess(invert: Bool = false) {
         applyGamma(invert: invert)
+        startReconfigurationMonitor()
         try? stateContent(invert: invert).write(toFile: stateFilePath, atomically: true, encoding: .utf8)
     }
 
     // For the menu bar app: restore display and clean up state.
     public static func disableInProcess() {
+        stopReconfigurationMonitor()
         CGDisplayRestoreColorSyncSettings()
         try? FileManager.default.removeItem(atPath: stateFilePath)
         try? FileManager.default.removeItem(atPath: pidFilePath)
@@ -58,12 +64,36 @@ public enum DarkroomMode {
     // Called by the hold subprocess: apply gamma and block until killed.
     public static func hold(invert: Bool) {
         applyGamma(invert: invert)
+        startReconfigurationMonitor()
         signal(SIGTERM) { _ in CGDisplayRestoreColorSyncSettings(); exit(0) }
         signal(SIGINT)  { _ in CGDisplayRestoreColorSyncSettings(); exit(0) }
         dispatchMain()
     }
 
     // MARK: - Private
+
+    private enum GammaTable {
+        static let size     = 256
+        static let normal:   [CGGammaValue] = (0..<size).map { CGGammaValue(Double($0) / Double(size - 1)) }
+        static let inverted: [CGGammaValue] = Array(normal.reversed())
+        static let zeros:    [CGGammaValue] = Array(repeating: 0, count: size)
+    }
+
+    // Reads the state file once; returns nil if inactive, invert flag if active.
+    static var activeSession: Bool? {
+        (try? String(contentsOfFile: stateFilePath))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "invert" }
+    }
+
+    static func startReconfigurationMonitor() {
+        // Remove before re-registering so toggling invert doesn't stack callbacks.
+        CGDisplayRemoveReconfigurationCallback(displayReconfigCallback, nil)
+        CGDisplayRegisterReconfigurationCallback(displayReconfigCallback, nil)
+    }
+
+    static func stopReconfigurationMonitor() {
+        CGDisplayRemoveReconfigurationCallback(displayReconfigCallback, nil)
+    }
 
     static var stateFilePath: String { tmpPath(".am_active") }
     static var pidFilePath: String   { tmpPath(".am_pid") }
@@ -105,15 +135,9 @@ public enum DarkroomMode {
     }
 
     static func applyGamma(invert: Bool) {
-        let n = 256
-        var red = (0..<n).map { i -> CGGammaValue in
-            let v = Double(i) / Double(n - 1)
-            return CGGammaValue(invert ? 1.0 - v : v)
-        }
-        var green = [CGGammaValue](repeating: 0, count: n)
-        var blue  = [CGGammaValue](repeating: 0, count: n)
+        let red = invert ? GammaTable.inverted : GammaTable.normal
         for display in activeDisplays() {
-            CGSetDisplayTransferByTable(display, UInt32(n), &red, &green, &blue)
+            CGSetDisplayTransferByTable(display, UInt32(GammaTable.size), red, GammaTable.zeros, GammaTable.zeros)
         }
     }
 

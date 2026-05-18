@@ -79,4 +79,6 @@ The xcodeproj is gitignored; run `make generate` after pulling changes to `proje
 script/release VERSION
 ```
 
-The script promotes `[Unreleased]` to a dated version entry, tags and pushes, computes the tarball sha256, updates `../homebrew-tap/Formula/after-midnight.rb`, and creates the GitHub release.
+The script promotes `[Unreleased]` to a dated version entry, tags, and pushes.
+GitHub Actions (`.github/workflows/release.yml`) then handles the rest: computes the tarball sha256, creates the GitHub release, and updates `../homebrew-tap/Formula/after-midnight.rb`.
+The workflow requires a `HOMEBREW_TAP_TOKEN` secret (PAT with repo write access to `danhorst/homebrew-tap`) set in the repo's Actions settings.

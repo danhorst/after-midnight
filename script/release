@@ -7,16 +7,17 @@ set -euo pipefail
 #   - README reviewed for accuracy
 #   - CHANGELOG entries written under [Unreleased]
 #   - All changes committed; working tree clean
+#
+# After pushing the tag, GitHub Actions handles:
+#   - Computing sha256 of the source tarball
+#   - Creating the GitHub release
+#   - Updating the homebrew-tap formula
 
 VERSION="${1:?Usage: script/release VERSION}"
 VERSION="${VERSION#v}"  # strip leading 'v' so both 'v0.2.3' and '0.2.3' work
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-TAP_DIR="$(cd "$REPO_DIR/../homebrew-tap" 2>/dev/null && pwd)" || {
-    echo "error: ../homebrew-tap not found" >&2; exit 1
-}
-FORMULA="$TAP_DIR/Formula/after-midnight.rb"
 REPO="danhorst/after-midnight"
 
 cd "$REPO_DIR"
@@ -25,11 +26,6 @@ cd "$REPO_DIR"
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "error: uncommitted changes present — commit or stash before releasing" >&2
-    exit 1
-fi
-
-if ! gh auth status --hostname github.com &>/dev/null; then
-    echo "error: not authenticated with GitHub — run 'gh auth login' first" >&2
     exit 1
 fi
 
@@ -74,34 +70,4 @@ fi
 
 git tag -m "v$VERSION" "v$VERSION"
 git push origin main "v$VERSION"
-echo "Tagged and pushed v$VERSION"
-
-# ── 3. Compute sha256 ──────────────────────────────────────────────────────────
-
-URL="https://github.com/$REPO/archive/refs/tags/v$VERSION.tar.gz"
-echo "Computing sha256 for tarball..."
-SHA=$(curl -sL "$URL" | shasum -a 256 | awk '{print $1}')
-echo "sha256: $SHA"
-
-# ── 4. Update homebrew formula ─────────────────────────────────────────────────
-
-sd 'version ".*"' "version \"$VERSION\"" "$FORMULA"
-sd 'url ".*"' "url \"$URL\"" "$FORMULA"
-sd 'sha256 ".*"' "sha256 \"$SHA\"" "$FORMULA"
-echo "Updated $FORMULA"
-
-# ── 5. Commit and push homebrew-tap ───────────────────────────────────────────
-
-cd "$TAP_DIR"
-git add Formula/after-midnight.rb
-git commit -m "after-midnight v$VERSION"
-git push
-echo "Pushed homebrew-tap"
-
-# ── 6. Create GitHub release ──────────────────────────────────────────────────
-
-cd "$REPO_DIR"
-NOTES=$(awk "/^## \[$VERSION\]/{f=1;next} f&&/^## \[/{exit} f{print}" CHANGELOG.md)
-gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
-
-echo "Released v$VERSION"
+echo "Tagged and pushed v$VERSION — GitHub Actions will create the release and update the tap"

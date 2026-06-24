@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Menu bar icon now exposes an accessibility label and on/off value to VoiceOver.
+
 ## [0.2.5] - 2026-05-15
 
 ### Changed

@@ -74,6 +74,8 @@ struct AfterMidnightApp: App {
                 .keyboardShortcut("q")
         } label: {
             Image(systemName: state.isActive ? "moon.fill" : "moon")
+                .accessibilityLabel("After Midnight")
+                .accessibilityValue(state.isActive ? "On" : "Off")
         }
     }
 }

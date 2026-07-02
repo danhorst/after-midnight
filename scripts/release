@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: script/release VERSION
+# Usage: scripts/release VERSION
 #
 # Prerequisites:
 #   - README reviewed for accuracy

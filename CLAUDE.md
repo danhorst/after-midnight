@@ -76,7 +76,7 @@ The xcodeproj is gitignored; run `make generate` after pulling changes to `proje
 3. Commit all changes; working tree must be clean before the next step.
 4. Run:
 ```
-script/release VERSION
+scripts/release VERSION
 ```
 
 The script promotes `[Unreleased]` to a dated version entry, tags, and pushes.

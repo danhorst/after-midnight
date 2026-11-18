@@ -11,13 +11,17 @@ final class DarkroomState: ObservableObject {
     private var invert: Bool { UserDefaults.standard.bool(forKey: "invert") }
 
     func enable() {
-        DarkroomMode.enableInProcess(invert: invert)
-        isActive = true
+        do {
+            try DarkroomMode.enableInProcess(invert: invert)
+            isActive = true
+        } catch { NSLog("%@", error.localizedDescription) }
     }
 
     func disable() {
-        DarkroomMode.disableInProcess()
-        isActive = false
+        do {
+            try DarkroomMode.disableInProcess()
+            isActive = false
+        } catch { NSLog("%@", error.localizedDescription) }
     }
 
     func toggle() { isActive ? disable() : enable() }

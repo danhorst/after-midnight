@@ -5,9 +5,8 @@ import Foundation
 // Re-applies gamma after any display reconfiguration (monitor connect/disconnect/sleep).
 // File-scope so it has no captures and can bridge to @convention(c).
 private let displayReconfigCallback: CGDisplayReconfigurationCallBack = { _, flags, _ in
-    guard !flags.contains(.beginConfigurationFlag),
-          let invert = DarkroomMode.activeSession else { return }
-    DarkroomMode.applyGamma(invert: invert)
+    guard !flags.contains(.beginConfigurationFlag) else { return }
+    DarkroomMode.displayConfigurationChanged()
 }
 
 public enum DarkroomMode {
@@ -29,45 +28,66 @@ public enum DarkroomMode {
 
     @discardableResult
     public static func toggle(invert: Bool = false) -> Bool {
-        let next = !isActive
-        if next { enable(invert: invert) } else { disable() }
-        return next
+        (try? toggleHelper(invert: invert)) ?? isActive
     }
 
-    // For the menu bar app: apply gamma in the calling process and write state.
-    // The app's own lifetime holds the gamma table; no subprocess needed.
-    public static func enableInProcess(invert: Bool = false) {
-        applyGamma(invert: invert)
-        startReconfigurationMonitor()
-        try? stateContent(invert: invert).write(toFile: stateFilePath, atomically: true, encoding: .utf8)
+    @discardableResult
+    public static func toggleHelper(invert: Bool, keepActive: Bool = false) throws -> Bool {
+        try session.toggle(invert: invert, keepActive: keepActive, executable: resolvedExecutablePath())
     }
 
-    // For the menu bar app: restore display and clean up state.
-    public static func disableInProcess() {
-        stopReconfigurationMonitor()
-        CGDisplayRestoreColorSyncSettings()
-        try? FileManager.default.removeItem(atPath: stateFilePath)
-        try? FileManager.default.removeItem(atPath: pidFilePath)
+    public static func enableInProcess(invert: Bool = false) throws {
+        try session.withLock { try activateInProcess(invert: invert) }
     }
 
-    // Kills any CLI hold process and removes its PID file. Called by the app on launch
-    // to take ownership of a session the CLI started.
-    public static func killHoldProcess() {
-        if let raw = try? String(contentsOfFile: pidFilePath),
-           let pid = pid_t(raw.trimmingCharacters(in: .whitespacesAndNewlines)),
-           pid > 0 {
-            kill(pid, SIGTERM)
+    public static func takeOverIfActive() throws {
+        try session.withLock {
+            if let invert = activeSession { try activateInProcess(invert: invert) }
         }
-        try? FileManager.default.removeItem(atPath: pidFilePath)
+    }
+
+    private static func activateInProcess(invert: Bool) throws {
+        try session.stop()
+        try stateContent(invert: invert).write(toFile: stateFilePath, atomically: true, encoding: .utf8)
+        startReconfigurationMonitor(invert: invert)
+    }
+
+    public static func disableInProcess() throws {
+        try session.withLock {
+            try session.stop()
+            restoreInProcess()
+            try session.clearActiveMarker()
+        }
+    }
+
+    public static func endAppSession() throws {
+        try session.withLock {
+            if restoreInProcess() { try session.clearActiveMarker() }
+        }
+    }
+
+    @discardableResult
+    private static func restoreInProcess() -> Bool {
+        guard stopReconfigurationMonitor() else { return false }
+        CGDisplayRestoreColorSyncSettings()
+        return true
     }
 
     // Called by the hold subprocess: apply gamma and block until killed.
     public static func hold(invert: Bool) {
-        applyGamma(invert: invert)
-        startReconfigurationMonitor()
-        signal(SIGTERM) { _ in CGDisplayRestoreColorSyncSettings(); exit(0) }
-        signal(SIGINT)  { _ in CGDisplayRestoreColorSyncSettings(); exit(0) }
-        dispatchMain()
+        // Perform cleanup on a dispatch queue, outside a POSIX signal handler.
+        let sources = [SIGTERM, SIGINT].map { sig in
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler {
+                restoreInProcess()
+                exit(0)
+            }
+            source.resume()
+            return source
+        }
+        startReconfigurationMonitor(invert: invert)
+        withExtendedLifetime(sources) { dispatchMain() }
     }
 
     // MARK: - Private
@@ -85,14 +105,45 @@ public enum DarkroomMode {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "invert" }
     }
 
-    static func startReconfigurationMonitor() {
-        // Remove before re-registering so toggling invert doesn't stack callbacks.
-        CGDisplayRemoveReconfigurationCallback(displayReconfigCallback, nil)
-        CGDisplayRegisterReconfigurationCallback(displayReconfigCallback, nil)
+    // Serialize gamma writes with disable so a queued retry cannot revive a session.
+    private static let displayQueue = DispatchQueue(label: "AfterMidnight.displays")
+    private static var currentInvert: Bool?
+    private static var pendingRefresh: DispatchWorkItem?
+
+    private static func startReconfigurationMonitor(invert: Bool) {
+        displayQueue.sync {
+            if currentInvert == nil {
+                CGDisplayRegisterReconfigurationCallback(displayReconfigCallback, nil)
+            }
+            currentInvert = invert
+            applyGamma(invert: invert)
+        }
     }
 
-    static func stopReconfigurationMonitor() {
-        CGDisplayRemoveReconfigurationCallback(displayReconfigCallback, nil)
+    fileprivate static func displayConfigurationChanged() {
+        displayQueue.async {
+            guard let invert = currentInvert else { return }
+            applyGamma(invert: invert)
+            // ColorSync can replace the tables after the last display callback.
+            // Coalesce per-display notifications and refresh once topology settles.
+            pendingRefresh?.cancel()
+            let refresh = DispatchWorkItem {
+                if let invert = currentInvert { applyGamma(invert: invert) }
+            }
+            pendingRefresh = refresh
+            displayQueue.asyncAfter(deadline: .now() + .seconds(1), execute: refresh)
+        }
+    }
+
+    private static func stopReconfigurationMonitor() -> Bool {
+        displayQueue.sync {
+            guard currentInvert != nil else { return false }
+            currentInvert = nil
+            pendingRefresh?.cancel()
+            pendingRefresh = nil
+            CGDisplayRemoveReconfigurationCallback(displayReconfigCallback, nil)
+            return true
+        }
     }
 
     static var stateFilePath: String { tmpPath(".am_active") }
@@ -102,29 +153,9 @@ public enum DarkroomMode {
         (NSTemporaryDirectory() as NSString).appendingPathComponent(name)
     }
 
-    static func enable(invert: Bool) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: resolvedExecutablePath())
-        task.arguments = invert ? ["--hold", "--invert"] : ["--hold"]
-        task.standardInput  = FileHandle.nullDevice
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError  = FileHandle.nullDevice
-        try? task.run()
-        try? stateContent(invert: invert).write(toFile: stateFilePath, atomically: true, encoding: .utf8)
-        try? "\(task.processIdentifier)".write(toFile: pidFilePath, atomically: true, encoding: .utf8)
-    }
+    static let session = HoldSession(stateFilePath: stateFilePath, pidFilePath: pidFilePath)
 
     static func stateContent(invert: Bool) -> String { invert ? "invert" : "" }
-
-    static func disable() {
-        if let raw = try? String(contentsOfFile: pidFilePath),
-           let pid = pid_t(raw.trimmingCharacters(in: .whitespacesAndNewlines)),
-           pid > 0 {
-            kill(pid, SIGTERM)
-        }
-        try? FileManager.default.removeItem(atPath: stateFilePath)
-        try? FileManager.default.removeItem(atPath: pidFilePath)
-    }
 
     // argv[0] is whatever the shell passes — often a bare name when resolved via PATH.
     // _NSGetExecutablePath gives the absolute path the kernel used to exec this process.
@@ -143,9 +174,10 @@ public enum DarkroomMode {
 
     static func activeDisplays() -> [CGDirectDisplayID] {
         var count: UInt32 = 0
-        CGGetActiveDisplayList(0, nil, &count)
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return [] }
         var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        CGGetActiveDisplayList(count, &ids, &count)
-        return ids
+        let capacity = count
+        guard CGGetActiveDisplayList(capacity, &ids, &count) == .success else { return [] }
+        return Array(ids.prefix(Int(count)))
     }
 }

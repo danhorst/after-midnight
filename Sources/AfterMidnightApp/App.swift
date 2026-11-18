@@ -16,18 +16,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            if DarkroomState.shared.isActive { DarkroomState.shared.enable() }
-        }
-    }
-
     func applicationWillTerminate(_ notification: Notification) {
-        DarkroomMode.disableInProcess()
+        do { try DarkroomMode.endAppSession() } catch { NSLog("%@", error.localizedDescription) }
     }
 }
 
@@ -39,10 +29,8 @@ struct AfterMidnightApp: App {
     @AppStorage("invert") private var invert: Bool = false
 
     init() {
-        if DarkroomMode.isActive {
-            let mode = DarkroomMode.activeInvert
-            DarkroomMode.killHoldProcess()
-            DarkroomMode.enableInProcess(invert: mode)
+        do { try DarkroomMode.takeOverIfActive() } catch {
+            NSLog("After Midnight could not take over the CLI session: %@", error.localizedDescription)
         }
     }
 

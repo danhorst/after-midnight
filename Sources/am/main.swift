@@ -15,24 +15,27 @@ if isHold {
     let invert        = DarkroomMode.invertPreference
     let flagSpecified = invertFlag || noInvertFlag
     // A flag while already active means "change mode, keep running" — not toggle off.
-    let next = (flagSpecified && DarkroomMode.isActive) ? true : !DarkroomMode.isActive
+    let next: Bool
 
     let appIsRunning = !NSRunningApplication
         .runningApplications(withBundleIdentifier: DarkroomMode.appBundleID)
         .isEmpty
 
-    if appIsRunning {
-        let url = Process()
-        url.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        url.arguments = ["aftermidnight://\(next ? "on" : "off")"]
-        try? url.run()
-        url.waitUntilExit()
-    } else {
-        if next && DarkroomMode.isActive {
-            // Kill current hold process before re-enabling with new mode.
-            DarkroomMode.toggle()
+    do {
+        if appIsRunning {
+            next = flagSpecified || !DarkroomMode.isActive
+            let url = Process()
+            url.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            url.arguments = ["aftermidnight://\(next ? "on" : "off")"]
+            try url.run()
+            url.waitUntilExit()
+            guard url.terminationStatus == 0 else { exit(url.terminationStatus) }
+        } else {
+            next = try DarkroomMode.toggleHelper(invert: invert, keepActive: flagSpecified)
         }
-        DarkroomMode.toggle(invert: invert)
+    } catch {
+        FileHandle.standardError.write(Data("After Midnight: \(error.localizedDescription)\n".utf8))
+        exit(EXIT_FAILURE)
     }
 
     print("After Midnight: \(next ? "ON" : "OFF")")

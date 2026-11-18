@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reapply the active filter after monitor connection and disconnection events settle.
+- Wait for the previous CLI helper to finish restoring colors before switching modes or handing control to the menu bar app.
+- Report CLI launch and delegation errors and avoid recording a session when the helper cannot start.
+- Ignore reused process IDs in new helper records and leave display settings alone when quitting an inactive app.
+
 ## [0.2.6] - 2026-06-23
 
 ### Fixed
